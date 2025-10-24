@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\Admin\AdminController;
 use App\Http\Controllers\Api\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Api\Admin\DashboardController;
+use App\Http\Controllers\Api\Admin\AdminProfileController;
 use App\Http\Controllers\Api\UserController;
 
 Route::get('/user', function (Request $request) {
@@ -196,5 +197,28 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/recent-orders', [DashboardController::class, 'getRecentOrders']);
             Route::get('/product-stats', [DashboardController::class, 'getProductStats']);
         });
+
+        // Admin Profile endpoints
+        Route::group(['prefix' => 'admin/profile'], function () {
+            Route::get('/', [\App\Http\Controllers\Api\Admin\AdminProfileController::class, 'show']);
+            Route::put('/', [\App\Http\Controllers\Api\Admin\AdminProfileController::class, 'update']);
+            Route::post('/avatar', [\App\Http\Controllers\Api\Admin\AdminProfileController::class, 'uploadAvatar']);
+            Route::put('/password', [\App\Http\Controllers\Api\Admin\AdminProfileController::class, 'changePassword']);
+            Route::put('/notifications', [\App\Http\Controllers\Api\Admin\AdminProfileController::class, 'updateNotifications']);
+            Route::get('/stats', [\App\Http\Controllers\Api\Admin\AdminProfileController::class, 'getStats']);
+            Route::delete('/', [\App\Http\Controllers\Api\Admin\AdminProfileController::class, 'deleteAccount']);
+        });
     });
+});
+
+// Fallback endpoints for admin profile (if primary endpoints are not available)
+Route::middleware('auth:sanctum')->group(function () {
+    // Alternative Avatar Upload
+    Route::post('/auth/profile/avatar', [\App\Http\Controllers\Api\Admin\AdminProfileController::class, 'uploadAvatar']);
+    Route::post('/upload/avatar', [\App\Http\Controllers\Api\Admin\AdminProfileController::class, 'uploadAvatar']);
+    
+    // Alternative Profile Management
+    Route::get('/auth/profile', [\App\Http\Controllers\Api\Admin\AdminProfileController::class, 'show']);
+    Route::put('/auth/profile', [\App\Http\Controllers\Api\Admin\AdminProfileController::class, 'update']);
+    Route::put('/auth/password', [\App\Http\Controllers\Api\Admin\AdminProfileController::class, 'changePassword']);
 });

@@ -29,6 +29,14 @@ class User extends Authenticatable
         'is_active',
         'last_login_at',
         'preferences',
+        'role',
+        'bio',
+        'avatar',
+        'email_notifications',
+        'order_notifications',
+        'user_notifications',
+        'system_notifications',
+        'marketing_emails',
     ];
 
     /**
@@ -56,6 +64,11 @@ class User extends Authenticatable
             'is_active' => 'boolean',
             'last_login_at' => 'datetime',
             'preferences' => 'json',
+            'email_notifications' => 'boolean',
+            'order_notifications' => 'boolean',
+            'user_notifications' => 'boolean',
+            'system_notifications' => 'boolean',
+            'marketing_emails' => 'boolean',
         ];
     }
 
