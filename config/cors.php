@@ -27,7 +27,10 @@ return [
         'http://localhost:5173',
         'https://tsattai.pandiyankanna.com',
         'https://www.tsattai.pandiyankanna.com',
-        'https://api.pandiyankanna.com'
+        'https://api.pandiyankanna.com',
+        'https://vembarkarupatti.in',
+        'https://www.vembarkarupatti.in',
+        'https://backend.vembarkarupatti.in'
     ],
 
     'allowed_origins_patterns' => [],
