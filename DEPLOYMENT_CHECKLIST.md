@@ -6,7 +6,7 @@
 
 -   [ ] Run `composer install --optimize-autoloader --no-dev`
 -   [ ] Copy `env.production` to `.env` and configure
--   [ ] Generate new APP_KEY: `php artisan key:generate`
+-   [ ] Generate new APP_KEY: `php artisan key:generate --show` (copy the key for production)
 -   [ ] Clear all caches: `php artisan cache:clear && php artisan config:clear`
 -   [ ] Test locally one final time
 
