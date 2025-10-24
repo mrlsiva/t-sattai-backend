@@ -19,6 +19,30 @@ Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 
+// CORS test route
+Route::get('/cors-test', function () {
+    return response()->json([
+        'success' => true,
+        'message' => 'CORS is working correctly!',
+        'timestamp' => now()->toISOString(),
+        'origin' => request()->header('Origin'),
+        'headers' => [
+            'Access-Control-Allow-Origin' => response()->headers->get('Access-Control-Allow-Origin'),
+            'Access-Control-Allow-Methods' => response()->headers->get('Access-Control-Allow-Methods'),
+            'Access-Control-Allow-Headers' => response()->headers->get('Access-Control-Allow-Headers'),
+        ]
+    ]);
+});
+
+// Quick health check
+Route::get('/health', function () {
+    return response()->json([
+        'status' => 'OK',
+        'laravel' => app()->version(),
+        'timestamp' => now()->toISOString()
+    ]);
+});
+
 // Public routes
 Route::group(['prefix' => 'auth'], function () {
     Route::post('register', [AuthController::class, 'register']);

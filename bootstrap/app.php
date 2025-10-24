@@ -14,10 +14,12 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
+            'force-cors' => \App\Http\Middleware\ForceCorsProdMiddleware::class,
         ]);
         
-        // Add CORS headers for API routes
+        // Add CORS headers for API routes - force our custom middleware first
         $middleware->api([
+            \App\Http\Middleware\ForceCorsProdMiddleware::class,
             \Illuminate\Http\Middleware\HandleCors::class,
         ]);
     })
