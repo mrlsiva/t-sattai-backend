@@ -154,7 +154,7 @@ class PaymentController extends Controller
 
         $validator = Validator::make($request->all(), [
             'amount' => 'required|numeric|min:0.50',
-            'currency' => 'string|in:usd,eur,gbp',
+            'currency' => 'string|in:usd,eur,gbp,inr,cad,aud',
             'shipping_address' => 'nullable|array',
             'shipping_method' => 'nullable|string|in:standard,express,overnight',
         ]);
@@ -237,7 +237,7 @@ class PaymentController extends Controller
 
         $validator = Validator::make($request->all(), [
             'amount' => 'required|numeric|min:0.50',
-            'currency' => 'string|in:usd,eur,gbp',
+            'currency' => 'string|in:usd,eur,gbp,inr,cad,aud',
             // Shipping address and method for accurate tax and shipping calculation
             'shipping_address' => 'nullable|array',
             'shipping_address.country' => 'required_with:shipping_address|string|size:2',

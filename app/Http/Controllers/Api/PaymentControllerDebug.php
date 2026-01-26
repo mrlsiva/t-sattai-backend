@@ -154,7 +154,7 @@ class PaymentControllerDebug extends Controller
         // Step 1: Validate input
         $validator = Validator::make($request->all(), [
             'amount' => 'required|numeric|min:0.50',
-            'currency' => 'string|in:usd,eur,gbp',
+            'currency' => 'string|in:usd,eur,gbp,inr,cad,aud',
         ]);
 
         if ($validator->fails()) {
