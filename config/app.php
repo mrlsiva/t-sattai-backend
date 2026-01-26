@@ -107,6 +107,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Payment Amount Verification
+    |--------------------------------------------------------------------------
+    |
+    | This option controls whether payment amount verification is enforced.
+    | When set to true, the system will skip amount verification between
+    | frontend and backend calculations. Useful for development/testing.
+    |
+    */
+
+    'skip_payment_amount_verification' => env('SKIP_PAYMENT_AMOUNT_VERIFICATION', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Maintenance Mode Driver
     |--------------------------------------------------------------------------
     |

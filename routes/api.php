@@ -15,6 +15,9 @@ use App\Http\Controllers\Api\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\AdminProfileController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\AddressController;
+use App\Http\Controllers\Api\PaymentControllerDebug;
+use App\Http\Controllers\Api\CheckoutController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -70,10 +73,28 @@ Route::middleware('auth:sanctum')->group(function () {
     // Auth routes
     Route::group(['prefix' => 'auth'], function () {
         Route::get('profile', [AuthController::class, 'profile']);
+        Route::get('me', [AuthController::class, 'profile']); // Alternative endpoint
         Route::put('profile', [AuthController::class, 'updateProfile']);
         Route::put('change-password', [AuthController::class, 'changePassword']);
         Route::post('logout', [AuthController::class, 'logout']);
         Route::post('logout-all', [AuthController::class, 'logoutAll']);
+        
+        // Check authentication status and get redirect info
+        Route::get('check', function (Request $request) {
+            $user = $request->user();
+            
+            return response()->json([
+                'success' => true,
+                'authenticated' => true,
+                'data' => [
+                    'user' => $user->only(['id', 'name', 'email', 'role', 'is_admin']),
+                    'redirect_to' => $user->getRedirectPath(),
+                    'is_admin' => $user->isAdmin(),
+                    'role' => $user->role ?? 'customer',
+                    'permissions' => $user->getPermissions()
+                ]
+            ]);
+        });
     });
 
     // Cart routes
@@ -83,43 +104,20 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/{cart}', [CartController::class, 'update']);
         Route::delete('/{cart}', [CartController::class, 'destroy']);
         Route::delete('/', [CartController::class, 'clear']);
-        
-        // Debug endpoint
-        Route::get('debug', function (Request $request) {
-            $cartItems = \App\Models\Cart::with(['product'])
-                ->where('user_id', $request->user()->id)
-                ->get();
-                
-            $total = 0;
-            foreach ($cartItems as $item) {
-                $price = $item->product->sale_price ?: $item->product->price;
-                $total += $price * $item->quantity;
-            }
-            
-            return response()->json([
-                'success' => true,
-                'cart_items_count' => $cartItems->count(),
-                'cart_total' => $total,
-                'items' => $cartItems
-            ]);
-        });
     });
 
     // Payment routes
     Route::group(['prefix' => 'payments'], function () {
         Route::post('create-intent', [PaymentController::class, 'createPaymentIntent']);
+        Route::post('create-intent-simple', [PaymentController::class, 'createPaymentIntentSimple']);
         Route::post('confirm', [PaymentController::class, 'confirmPayment']);
         Route::get('methods', [PaymentController::class, 'getPaymentMethods']);
         
-        // Test endpoint for debugging auth
-        Route::get('test-auth', function (Request $request) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Authentication working!',
-                'user' => $request->user()->only(['id', 'name', 'email']),
-                'timestamp' => now()
-            ]);
-        });
+        // Debug routes
+        Route::post('debug/calculation', [PaymentController::class, 'debugPaymentCalculation']);
+        Route::get('debug/requirements', [PaymentControllerDebug::class, 'debugPaymentRequirements']);
+        Route::post('debug/create-intent', [PaymentControllerDebug::class, 'createPaymentIntentDebug']);
+        Route::post('debug/simulate-intent', [PaymentControllerDebug::class, 'simulatePaymentIntent']);
     });
 
     // Order routes for users
@@ -149,6 +147,54 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/{product}', [WishlistController::class, 'destroy']);
         Route::get('/check/{product}', [WishlistController::class, 'check']);
         Route::delete('/', [WishlistController::class, 'clear']);
+    });
+
+    // User Address routes
+    Route::group(['prefix' => 'user/addresses'], function () {
+        Route::get('/', [AddressController::class, 'index']);              // GET /user/addresses
+        Route::post('/', [AddressController::class, 'store']);             // POST /user/addresses
+        Route::get('/{id}', [AddressController::class, 'show']);           // GET /user/addresses/{id}
+        Route::put('/{id}', [AddressController::class, 'update']);         // PUT /user/addresses/{id}
+        Route::delete('/{id}', [AddressController::class, 'destroy']);     // DELETE /user/addresses/{id}
+        Route::put('/{id}/default', [AddressController::class, 'setDefault']); // PUT /user/addresses/{id}/default
+        Route::get('/type/{type}', [AddressController::class, 'getByType']); // GET /user/addresses/type/{type}
+    });
+
+    // Alternative address routes (for compatibility)
+    Route::group(['prefix' => 'addresses'], function () {
+        Route::get('/', [AddressController::class, 'index']);
+        Route::post('/', [AddressController::class, 'store']);
+        Route::get('/{id}', [AddressController::class, 'show']);
+        Route::put('/{id}', [AddressController::class, 'update']);
+        Route::delete('/{id}', [AddressController::class, 'destroy']);
+        Route::put('/{id}/default', [AddressController::class, 'setDefault']);
+        Route::get('/type/{type}', [AddressController::class, 'getByType']);
+    });
+
+    // Checkout calculation routes
+    Route::group(['prefix' => 'checkout'], function () {
+        Route::post('calculate-totals', [CheckoutController::class, 'calculateTotals']);
+        Route::get('shipping-methods', [CheckoutController::class, 'getShippingMethods']);
+        Route::post('shipping-methods', [CheckoutController::class, 'getShippingMethods']); // Also accept POST
+        Route::get('tax-rates', [CheckoutController::class, 'getTaxRates']);
+        Route::post('tax-rates', [CheckoutController::class, 'getTaxRates']); // Also accept POST
+    });
+
+    // Tax Rate Management routes
+    Route::group(['prefix' => 'tax-rates'], function () {
+        // Public endpoints for tax lookup
+        Route::post('find-location', [\App\Http\Controllers\Api\TaxRateController::class, 'findForLocation']);
+        Route::post('calculate', [\App\Http\Controllers\Api\TaxRateController::class, 'calculateTax']);
+        
+        // Admin endpoints for tax rate management
+        Route::middleware('admin')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Api\TaxRateController::class, 'index']);
+            Route::post('/', [\App\Http\Controllers\Api\TaxRateController::class, 'store']);
+            Route::get('/{id}', [\App\Http\Controllers\Api\TaxRateController::class, 'show']);
+            Route::put('/{id}', [\App\Http\Controllers\Api\TaxRateController::class, 'update']);
+            Route::delete('/{id}', [\App\Http\Controllers\Api\TaxRateController::class, 'destroy']);
+            Route::post('bulk-import', [\App\Http\Controllers\Api\TaxRateController::class, 'bulkImport']);
+        });
     });
 
     // Admin routes

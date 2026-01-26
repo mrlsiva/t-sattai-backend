@@ -111,4 +111,38 @@ class User extends Authenticatable
     {
         return $this->hasMany(Address::class);
     }
+
+    /**
+     * Check if user is an admin
+     */
+    public function isAdmin()
+    {
+        return $this->is_admin || 
+               (isset($this->role) && in_array(strtolower($this->role), ['admin', 'administrator', 'super_admin']));
+    }
+
+    /**
+     * Get user's redirect path after login
+     */
+    public function getRedirectPath()
+    {
+        return $this->isAdmin() ? '/admin/dashboard' : '/dashboard';
+    }
+
+    /**
+     * Get user's permissions
+     */
+    public function getPermissions()
+    {
+        $isAdmin = $this->isAdmin();
+        
+        return [
+            'can_access_admin' => $isAdmin,
+            'can_manage_users' => $isAdmin,
+            'can_manage_products' => $isAdmin,
+            'can_manage_orders' => $isAdmin,
+            'can_manage_categories' => $isAdmin,
+            'can_view_analytics' => $isAdmin,
+        ];
+    }
 }

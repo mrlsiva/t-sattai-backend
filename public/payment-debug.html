@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment API Debug & Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
+            background-color: #fafafa;
+        }
+
+        .section h3 {
+            color: #34495e;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 5px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        .btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            transition: background-color 0.3s;
+        }
+
+        .btn:hover {
+            background-color: #2980b9;
+        }
+
+        .btn-success {
+            background-color: #27ae60;
+        }
+
+        .btn-danger {
+            background-color: #e74c3c;
+        }
+
+        .response {
+            background-color: #1e1e1e;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin-top: 15px;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .login-section {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        .info-box {
+            background: #e8f4fd;
+            border: 1px solid #bee5eb;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+
+        .error-box {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+
+        .success-box {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .step {
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .step h4 {
+            margin: 0 0 10px 0;
+            color: #007bff;
+        }
+
+        .code-block {
+            background: #f4f4f4;
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>💳 Payment API Debug & Test Tool</h1>
+
+        <!-- Authentication Section -->
+        <div class="login-section">
+            <h3>🔐 Authentication</h3>
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="email" id="email" value="admin@example.com">
+            </div>
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" value="password">
+            </div>
+            <button class="btn" onclick="login()">Login & Get Token</button>
+            <div id="loginResponse" class="response" style="display: none;"></div>
+        </div>
+
+        <!-- Cart Setup Section -->
+        <div class="section">
+            <h3>🛒 Cart Setup (Required for Payment)</h3>
+
+            <div class="info-box">
+                <strong>ℹ️ Payment Flow Requirements:</strong><br>
+                1. User must have items in cart<br>
+                2. Payment amount must match cart total<br>
+                3. All cart items must have valid products with stock
+            </div>
+
+            <div class="grid">
+                <div class="form-group">
+                    <label for="productId">Product ID:</label>
+                    <input type="number" id="productId" value="1">
+                </div>
+                <div class="form-group">
+                    <label for="quantity">Quantity:</label>
+                    <input type="number" id="quantity" value="2" min="1">
+                </div>
+            </div>
+
+            <button class="btn" onclick="addToCart()">Add to Cart</button>
+            <button class="btn" onclick="getCart()">View Cart</button>
+            <button class="btn btn-danger" onclick="clearCart()">Clear Cart</button>
+
+            <div id="cartInfo"></div>
+        </div>
+
+        <!-- Payment Intent Section -->
+        <div class="section">
+            <h3>💰 1. Create Payment Intent</h3>
+
+            <div class="step">
+                <h4>Expected Request Format:</h4>
+                <div class="code-block">POST /api/payments/create-intent
+                    Headers: Authorization: Bearer {token}
+                    Body: {
+                    "amount": 159.98,
+                    "currency": "usd"
+                    }</div>
+            </div>
+
+            <div class="grid">
+                <div class="form-group">
+                    <label for="amount">Amount ($):</label>
+                    <input type="number" id="amount" step="0.01" value="159.98">
+                </div>
+                <div class="form-group">
+                    <label for="currency">Currency:</label>
+                    <select id="currency">
+                        <option value="usd">USD</option>
+                        <option value="eur">EUR</option>
+                        <option value="gbp">GBP</option>
+                    </select>
+                </div>
+            </div>
+
+            <button class="btn btn-success" onclick="createPaymentIntent()">Create Payment Intent</button>
+
+            <div id="paymentIntentResponse"></div>
+        </div>
+
+        <!-- Payment Confirmation Section -->
+        <div class="section">
+            <h3>✅ 2. Confirm Payment</h3>
+
+            <div class="step">
+                <h4>Expected Request Format:</h4>
+                <div class="code-block">POST /api/payments/confirm
+                    Headers: Authorization: Bearer {token}
+                    Body: {
+                    "payment_intent_id": "pi_xxxxx",
+                    "shipping_address": {
+                    "name": "John Doe",
+                    "line1": "123 Main Street",
+                    "line2": "Apt 4B",
+                    "city": "New York",
+                    "state": "NY",
+                    "postal_code": "10001",
+                    "country": "US"
+                    }
+                    }</div>
+            </div>
+
+            <div class="form-group">
+                <label for="paymentIntentId">Payment Intent ID:</label>
+                <input type="text" id="paymentIntentId" placeholder="Will be auto-filled from payment intent creation">
+            </div>
+
+            <h4>Shipping Address:</h4>
+            <div class="grid">
+                <div class="form-group">
+                    <label for="shippingName">Full Name:</label>
+                    <input type="text" id="shippingName" value="John Doe">
+                </div>
+                <div class="form-group">
+                    <label for="shippingLine1">Address Line 1:</label>
+                    <input type="text" id="shippingLine1" value="123 Main Street">
+                </div>
+                <div class="form-group">
+                    <label for="shippingLine2">Address Line 2 (Optional):</label>
+                    <input type="text" id="shippingLine2" value="Apt 4B">
+                </div>
+                <div class="form-group">
+                    <label for="shippingCity">City:</label>
+                    <input type="text" id="shippingCity" value="New York">
+                </div>
+                <div class="form-group">
+                    <label for="shippingState">State:</label>
+                    <input type="text" id="shippingState" value="NY">
+                </div>
+                <div class="form-group">
+                    <label for="shippingPostalCode">Postal Code:</label>
+                    <input type="text" id="shippingPostalCode" value="10001">
+                </div>
+                <div class="form-group">
+                    <label for="shippingCountry">Country (2-letter code):</label>
+                    <input type="text" id="shippingCountry" value="US" maxlength="2">
+                </div>
+            </div>
+
+            <button class="btn btn-success" onclick="confirmPayment()">Confirm Payment</button>
+
+            <div id="confirmPaymentResponse"></div>
+        </div>
+
+        <!-- Backend Requirements Analysis -->
+        <div class="section">
+            <h3>🔍 Backend Requirements Analysis</h3>
+
+            <div class="step">
+                <h4>Payment Intent Creation Validation:</h4>
+                <ul>
+                    <li><strong>amount:</strong> required, numeric, min 0.50</li>
+                    <li><strong>currency:</strong> optional, string, must be usd/eur/gbp</li>
+                    <li><strong>Cart verification:</strong> Backend checks if cart matches amount</li>
+                    <li><strong>Stock validation:</strong> Ensures all cart items have sufficient stock</li>
+                </ul>
+            </div>
+
+            <div class="step">
+                <h4>Payment Confirmation Validation:</h4>
+                <ul>
+                    <li><strong>payment_intent_id:</strong> required string</li>
+                    <li><strong>shipping_address:</strong> required object with specific fields</li>
+                    <li><strong>shipping_address.name:</strong> required string</li>
+                    <li><strong>shipping_address.line1:</strong> required string</li>
+                    <li><strong>shipping_address.line2:</strong> optional string</li>
+                    <li><strong>shipping_address.city:</strong> required string</li>
+                    <li><strong>shipping_address.state:</strong> optional string</li>
+                    <li><strong>shipping_address.postal_code:</strong> required string</li>
+                    <li><strong>shipping_address.country:</strong> required string, exactly 2 characters</li>
+                </ul>
+            </div>
+
+            <div class="step">
+                <h4>Backend Business Logic:</h4>
+                <ul>
+                    <li>Verifies payment intent status is 'succeeded' in Stripe</li>
+                    <li>Checks payment belongs to authenticated user</li>
+                    <li>Prevents duplicate orders for same payment intent</li>
+                    <li>Calculates totals: subtotal + tax (8%) + shipping ($10)</li>
+                    <li>Creates order and order items from cart</li>
+                    <li>Updates product stock levels</li>
+                    <li>Clears user's cart after successful order</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Debug Information -->
+        <div class="section">
+            <h3>🐛 Debug Information</h3>
+            <button class="btn" onclick="checkProducts()">Check Available Products</button>
+            <button class="btn" onclick="checkStripeConfig()">Check Stripe Configuration</button>
+            <button class="btn" onclick="checkUserProfile()">Check User Profile</button>
+
+            <div id="debugInfo"></div>
+        </div>
+
+        <!-- API Response Log -->
+        <div class="section">
+            <h3>📡 API Response Log</h3>
+            <div id="responseArea" class="response">Ready to test payment API endpoints...</div>
+        </div>
+    </div>
+
+    <script>
+        let authToken = '';
+        let currentPaymentIntentId = '';
+        const API_BASE = '/api';
+
+        function log(message, data = null) {
+            const responseArea = document.getElementById('responseArea');
+            const timestamp = new Date().toLocaleTimeString();
+            let output = `[${timestamp}] ${message}\n`;
+
+            if (data) {
+                output += JSON.stringify(data, null, 2) + '\n';
+            }
+            output += '\n' + '='.repeat(80) + '\n\n';
+
+            responseArea.textContent = output + responseArea.textContent;
+        }
+
+        async function apiRequest(endpoint, method = 'GET', body = null) {
+            if (!authToken && !endpoint.includes('/auth/login')) {
+                log('❌ No auth token. Please login first.');
+                return null;
+            }
+
+            try {
+                const options = {
+                    method,
+                    headers: {
+                        'Accept': 'application/json',
+                    }
+                };
+
+                if (authToken) {
+                    options.headers['Authorization'] = `Bearer ${authToken}`;
+                }
+
+                if (body) {
+                    options.headers['Content-Type'] = 'application/json';
+                    options.body = JSON.stringify(body);
+                }
+
+                const response = await fetch(`${API_BASE}${endpoint}`, options);
+                const data = await response.json();
+
+                log(`${method} ${endpoint} (${response.status})`, data);
+                return data;
+            } catch (error) {
+                log(`❌ API Error: ${method} ${endpoint}`, { error: error.message });
+                return null;
+            }
+        }
+
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            const data = await apiRequest('/auth/login', 'POST', { email, password });
+            const loginResponse = document.getElementById('loginResponse');
+
+            if (data && data.success && data.data.token) {
+                authToken = data.data.token;
+                loginResponse.style.display = 'block';
+                loginResponse.textContent = `✅ Login successful! Token: ${authToken.substring(0, 20)}...`;
+                loginResponse.style.backgroundColor = '#d4edda';
+                loginResponse.style.color = '#155724';
+            } else {
+                loginResponse.style.display = 'block';
+                loginResponse.textContent = `❌ Login failed: ${data?.message || 'Unknown error'}`;
+                loginResponse.style.backgroundColor = '#f8d7da';
+                loginResponse.style.color = '#721c24';
+            }
+        }
+
+        async function addToCart() {
+            const productId = document.getElementById('productId').value;
+            const quantity = parseInt(document.getElementById('quantity').value);
+
+            const data = await apiRequest('/cart', 'POST', {
+                product_id: parseInt(productId),
+                quantity: quantity
+            });
+
+            if (data && data.success) {
+                getCart(); // Refresh cart display
+            }
+        }
+
+        async function getCart() {
+            const data = await apiRequest('/cart');
+            const cartInfo = document.getElementById('cartInfo');
+
+            if (data && data.success) {
+                let total = 0;
+                let html = '<h4>🛒 Current Cart:</h4>';
+
+                if (data.data && data.data.length > 0) {
+                    html += '<ul>';
+                    data.data.forEach(item => {
+                        const price = item.product.sale_price || item.product.price;
+                        const itemTotal = price * item.quantity;
+                        total += itemTotal;
+                        html += `<li>${item.product.name} - Qty: ${item.quantity} × $${price} = $${itemTotal.toFixed(2)}</li>`;
+                    });
+                    html += '</ul>';
+                    html += `<strong>Total: $${total.toFixed(2)}</strong>`;
+
+                    // Auto-update amount field
+                    document.getElementById('amount').value = total.toFixed(2);
+                } else {
+                    html += '<p style="color: #6c757d;">Cart is empty</p>';
+                }
+
+                cartInfo.innerHTML = html;
+            }
+        }
+
+        async function clearCart() {
+            const data = await apiRequest('/cart', 'DELETE');
+            if (data && data.success) {
+                getCart(); // Refresh cart display
+            }
+        }
+
+        async function createPaymentIntent() {
+            const amount = parseFloat(document.getElementById('amount').value);
+            const currency = document.getElementById('currency').value;
+
+            const data = await apiRequest('/payments/create-intent', 'POST', {
+                amount: amount,
+                currency: currency
+            });
+
+            const responseDiv = document.getElementById('paymentIntentResponse');
+
+            if (data && data.success) {
+                currentPaymentIntentId = data.data.payment_intent_id;
+                document.getElementById('paymentIntentId').value = currentPaymentIntentId;
+
+                responseDiv.innerHTML = `
+                    <div class="success-box">
+                        <strong>✅ Payment Intent Created Successfully!</strong><br>
+                        <strong>Payment Intent ID:</strong> ${data.data.payment_intent_id}<br>
+                        <strong>Client Secret:</strong> ${data.data.client_secret}<br>
+                        <strong>Amount:</strong> $${data.data.amount}<br>
+                        <strong>Currency:</strong> ${data.data.currency}
+                    </div>
+                `;
+            } else {
+                responseDiv.innerHTML = `
+                    <div class="error-box">
+                        <strong>❌ Payment Intent Creation Failed</strong><br>
+                        ${data?.message || 'Unknown error'}<br>
+                        ${data?.errors ? JSON.stringify(data.errors, null, 2) : ''}
+                    </div>
+                `;
+            }
+        }
+
+        async function confirmPayment() {
+            const paymentIntentId = document.getElementById('paymentIntentId').value;
+
+            if (!paymentIntentId) {
+                alert('Please create a payment intent first');
+                return;
+            }
+
+            const shippingAddress = {
+                name: document.getElementById('shippingName').value,
+                line1: document.getElementById('shippingLine1').value,
+                line2: document.getElementById('shippingLine2').value || null,
+                city: document.getElementById('shippingCity').value,
+                state: document.getElementById('shippingState').value || null,
+                postal_code: document.getElementById('shippingPostalCode').value,
+                country: document.getElementById('shippingCountry').value
+            };
+
+            const data = await apiRequest('/payments/confirm', 'POST', {
+                payment_intent_id: paymentIntentId,
+                shipping_address: shippingAddress
+            });
+
+            const responseDiv = document.getElementById('confirmPaymentResponse');
+
+            if (data && data.success) {
+                responseDiv.innerHTML = `
+                    <div class="success-box">
+                        <strong>✅ Payment Confirmed & Order Created!</strong><br>
+                        <strong>Order Number:</strong> ${data.data.order_number}<br>
+                        <strong>Order ID:</strong> ${data.data.order.id}<br>
+                        <strong>Total Amount:</strong> $${data.data.order.total_amount}<br>
+                        <strong>Status:</strong> ${data.data.order.status}
+                    </div>
+                `;
+
+                // Clear the form
+                document.getElementById('paymentIntentId').value = '';
+                getCart(); // Should show empty cart now
+            } else {
+                responseDiv.innerHTML = `
+                    <div class="error-box">
+                        <strong>❌ Payment Confirmation Failed</strong><br>
+                        ${data?.message || 'Unknown error'}<br>
+                        ${data?.errors ? JSON.stringify(data.errors, null, 2) : ''}
+                    </div>
+                `;
+            }
+        }
+
+        async function checkProducts() {
+            const data = await apiRequest('/products');
+            const debugInfo = document.getElementById('debugInfo');
+
+            if (data && data.success) {
+                let html = '<h4>📦 Available Products:</h4><ul>';
+                data.data.data.slice(0, 5).forEach(product => {
+                    html += `<li>ID: ${product.id} - ${product.name} - $${product.price} (Stock: ${product.stock})</li>`;
+                });
+                html += '</ul>';
+                debugInfo.innerHTML = html;
+            }
+        }
+
+        async function checkStripeConfig() {
+            const data = await apiRequest('/health');
+            const debugInfo = document.getElementById('debugInfo');
+
+            debugInfo.innerHTML = `
+                <h4>⚙️ Configuration Check:</h4>
+                <p><strong>API Health:</strong> ${data?.status || 'Unknown'}</p>
+                <p><strong>Laravel Version:</strong> ${data?.laravel || 'Unknown'}</p>
+                <p><strong>Note:</strong> Stripe configuration is handled server-side</p>
+            `;
+        }
+
+        async function checkUserProfile() {
+            const data = await apiRequest('/auth/profile');
+            const debugInfo = document.getElementById('debugInfo');
+
+            if (data && data.success) {
+                debugInfo.innerHTML = `
+                    <h4>👤 User Profile:</h4>
+                    <p><strong>ID:</strong> ${data.data.id}</p>
+                    <p><strong>Name:</strong> ${data.data.name}</p>
+                    <p><strong>Email:</strong> ${data.data.email}</p>
+                    <p><strong>Role:</strong> ${data.data.role || 'customer'}</p>
+                `;
+            }
+        }
+
+        // Auto-load cart and products on page load
+        window.onload = function () {
+            log('💳 Payment API Debug Tool loaded. Please login to test endpoints.');
+        };
+    </script>
+</body>
+
+</html>

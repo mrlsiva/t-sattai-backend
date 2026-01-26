@@ -103,7 +103,11 @@ class AuthController extends Controller
             'data' => [
                 'user' => $user,
                 'token' => $token,
-                'token_type' => 'Bearer'
+                'token_type' => 'Bearer',
+                'redirect_to' => $user->getRedirectPath(),
+                'is_admin' => $user->isAdmin(),
+                'role' => $user->role ?? 'customer',
+                'permissions' => $user->getPermissions()
             ]
         ]);
     }
@@ -113,9 +117,17 @@ class AuthController extends Controller
      */
     public function profile(Request $request)
     {
+        $user = $request->user();
+
         return response()->json([
             'success' => true,
-            'data' => $request->user()
+            'data' => [
+                'user' => $user,
+                'redirect_to' => $user->getRedirectPath(),
+                'is_admin' => $user->isAdmin(),
+                'role' => $user->role ?? 'customer',
+                'permissions' => $user->getPermissions()
+            ]
         ]);
     }
 

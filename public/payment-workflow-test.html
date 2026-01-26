@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔧 Payment Workflow Test - Fixed</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 5px solid #667eea;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .response {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+            font-size: 13px;
+            line-height: 1.4;
+            margin-top: 15px;
+        }
+
+        .success-box {
+            background: #e8f5e8;
+            border: 1px solid #4caf50;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            color: #2e7d32;
+        }
+
+        .error-box {
+            background: #ffebee;
+            border: 1px solid #f44336;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            color: #c62828;
+        }
+
+        .warning-box {
+            background: #fff3e0;
+            border: 1px solid #ff9800;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            color: #e65100;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .workflow-step {
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            border-radius: 8px;
+            padding: 10px;
+            margin: 5px 0;
+            font-size: 12px;
+            color: #1565c0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔧 Payment Workflow Test - Fixed Version</h1>
+            <p>Testing the corrected payment flow with proper amount handling</p>
+
+            <div class="workflow-step">
+                <strong>Correct Workflow:</strong><br>
+                1. Login → 2. Add to Cart → 3. Calculate Totals → 4. Create Payment Intent (Simple) → 5. Test Complete
+            </div>
+        </div>
+
+        <!-- Login Section -->
+        <div class="section">
+            <h3>🔐 Step 1: Login</h3>
+            <div class="grid">
+                <div class="form-group">
+                    <label for="email">Email:</label>
+                    <input type="email" id="email" value="user@example.com">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" value="password123">
+                </div>
+            </div>
+            <button class="btn" onclick="login()">Login</button>
+            <div id="loginResponse" class="response" style="display: none;"></div>
+        </div>
+
+        <!-- Cart Setup -->
+        <div class="section">
+            <h3>🛒 Step 2: Cart Setup</h3>
+            <div class="grid">
+                <div class="form-group">
+                    <label for="productId">Product ID:</label>
+                    <input type="number" id="productId" value="1">
+                </div>
+                <div class="form-group">
+                    <label for="quantity">Quantity:</label>
+                    <input type="number" id="quantity" value="2" min="1">
+                </div>
+            </div>
+            <button class="btn" onclick="addToCart()">Add to Cart</button>
+            <button class="btn" onclick="getCart()">View Cart</button>
+            <button class="btn btn-warning" onclick="clearCart()">Clear Cart</button>
+            <div id="cartResponse" class="response" style="display: none;"></div>
+        </div>
+
+        <!-- Checkout Calculation -->
+        <div class="section">
+            <h3>🧮 Step 3: Calculate Checkout Totals</h3>
+            <div class="grid">
+                <div class="form-group">
+                    <label for="country">Country:</label>
+                    <input type="text" id="country" value="US" maxlength="2">
+                </div>
+                <div class="form-group">
+                    <label for="state">State:</label>
+                    <input type="text" id="state" value="NY" maxlength="10">
+                </div>
+            </div>
+            <div class="grid">
+                <div class="form-group">
+                    <label for="city">City:</label>
+                    <input type="text" id="city" value="New York">
+                </div>
+                <div class="form-group">
+                    <label for="shippingMethod">Shipping Method:</label>
+                    <select id="shippingMethod">
+                        <option value="standard">Standard</option>
+                        <option value="express">Express</option>
+                        <option value="overnight">Overnight</option>
+                    </select>
+                </div>
+            </div>
+            <button class="btn btn-success" onclick="calculateTotals()">Calculate Totals</button>
+            <div id="totalsResponse" class="response" style="display: none;"></div>
+        </div>
+
+        <!-- Payment Intent Creation -->
+        <div class="section">
+            <h3>💳 Step 4: Create Payment Intent</h3>
+            <div class="warning-box">
+                <strong>Three Options Available:</strong><br>
+                <strong>Simple:</strong> Uses calculated total directly (recommended)<br>
+                <strong>Standard:</strong> Backend recalculates and verifies amount<br>
+                <strong>Debug:</strong> Analyze calculation differences
+            </div>
+
+            <button class="btn btn-success" onclick="createPaymentIntentSimple()">Create Payment Intent
+                (Simple)</button>
+            <button class="btn btn-warning" onclick="createPaymentIntentStandard()">Create Payment Intent
+                (Standard)</button>
+            <button class="btn" onclick="debugPaymentCalculation()"
+                style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);">🔍 Debug Calculation</button>
+            <div id="paymentResponse" class="response" style="display: none;"></div>
+        </div>
+
+        <!-- Debug Info -->
+        <div class="section">
+            <h3>📊 Debug Information</h3>
+            <div id="debugInfo" class="response">Ready to test payment workflow...</div>
+        </div>
+    </div>
+
+    <script>
+        let authToken = '';
+        let calculatedTotal = 0;
+        let shippingAddress = {};
+        let calculatedTotalsData = null;
+
+        function log(message, data = null) {
+            const debugInfo = document.getElementById('debugInfo');
+            const timestamp = new Date().toLocaleTimeString();
+            let output = `[${timestamp}] ${message}\n`;
+
+            if (data) {
+                output += JSON.stringify(data, null, 2) + '\n';
+            }
+            output += '\n' + '='.repeat(60) + '\n\n';
+
+            debugInfo.textContent = output + debugInfo.textContent;
+        }
+
+        async function apiRequest(endpoint, method = 'GET', body = null) {
+            try {
+                const options = {
+                    method,
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                };
+
+                if (authToken) {
+                    options.headers['Authorization'] = `Bearer ${authToken}`;
+                }
+
+                if (body) {
+                    options.body = JSON.stringify(body);
+                }
+
+                log(`🔄 ${method} ${endpoint}`, body);
+
+                const response = await fetch(`/api${endpoint}`, options);
+                const data = await response.json();
+
+                if (response.ok) {
+                    log(`✅ Success: ${data.message || 'Request completed'}`, data);
+                    return data;
+                } else {
+                    log(`❌ Error ${response.status}: ${data.message || 'Unknown error'}`, data);
+                    return data; // Return error data too for analysis
+                }
+            } catch (error) {
+                log(`💥 Network error: ${error.message}`);
+                return null;
+            }
+        }
+
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            const data = await apiRequest('/auth/login', 'POST', {
+                email: email,
+                password: password
+            });
+
+            if (data && data.success) {
+                authToken = data.data.token;
+                document.getElementById('loginResponse').style.display = 'block';
+                document.getElementById('loginResponse').innerHTML = `
+                    <div class="success-box">
+                        ✅ Login successful!<br>
+                        User: ${data.data.user.name}<br>
+                        Token acquired.
+                    </div>
+                `;
+            } else {
+                document.getElementById('loginResponse').style.display = 'block';
+                document.getElementById('loginResponse').innerHTML = `
+                    <div class="error-box">
+                        ❌ Login failed. Please check credentials.
+                    </div>
+                `;
+            }
+        }
+
+        async function addToCart() {
+            const productId = document.getElementById('productId').value;
+            const quantity = document.getElementById('quantity').value;
+
+            const data = await apiRequest('/cart', 'POST', {
+                product_id: parseInt(productId),
+                quantity: parseInt(quantity)
+            });
+
+            if (data) {
+                document.getElementById('cartResponse').style.display = 'block';
+                if (data.success) {
+                    document.getElementById('cartResponse').innerHTML = `
+                        <div class="success-box">
+                            ✅ Added to cart successfully!<br>
+                            Product: ${data.data.product.name}<br>
+                            Quantity: ${data.data.quantity}<br>
+                            Price: $${data.data.product.price}
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('cartResponse').textContent = JSON.stringify(data, null, 2);
+                }
+            }
+        }
+
+        async function getCart() {
+            const data = await apiRequest('/cart');
+
+            if (data) {
+                document.getElementById('cartResponse').style.display = 'block';
+                if (data.success && data.data.length > 0) {
+                    let cartHTML = '<div class="success-box">✅ Cart Contents:<br>';
+                    data.data.forEach(item => {
+                        const price = item.product.sale_price || item.product.price;
+                        cartHTML += `${item.product.name} - $${price} x ${item.quantity} = $${(price * item.quantity).toFixed(2)}<br>`;
+                    });
+                    cartHTML += '</div>';
+                    document.getElementById('cartResponse').innerHTML = cartHTML;
+                } else {
+                    document.getElementById('cartResponse').innerHTML = `
+                        <div class="warning-box">
+                            ⚠️ Cart is empty. Please add some items first.
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        async function clearCart() {
+            const data = await apiRequest('/cart', 'DELETE');
+            if (data) {
+                document.getElementById('cartResponse').style.display = 'block';
+                document.getElementById('cartResponse').innerHTML = `
+                    <div class="success-box">
+                        ✅ Cart cleared successfully!
+                    </div>
+                `;
+            }
+        }
+
+        async function calculateTotals() {
+            shippingAddress = {
+                country: document.getElementById('country').value,
+                state: document.getElementById('state').value,
+                city: document.getElementById('city').value,
+                postal_code: '10001'
+            };
+
+            const requestData = {
+                shipping_address: shippingAddress,
+                shipping_method: document.getElementById('shippingMethod').value
+            };
+
+            const data = await apiRequest('/checkout/calculate-totals', 'POST', requestData);
+
+            if (data && data.success) {
+                calculatedTotal = data.data.total;
+                calculatedTotalsData = data.data;
+
+                document.getElementById('totalsResponse').style.display = 'block';
+                document.getElementById('totalsResponse').innerHTML = `
+                    <div class="success-box">
+                        ✅ Totals calculated successfully!<br>
+                        Subtotal: $${data.data.subtotal}<br>
+                        Tax: $${data.data.tax.amount} (${data.data.tax.description})<br>
+                        Shipping: $${data.data.shipping.cost} (${data.data.shipping.description})<br>
+                        <strong>Total: $${data.data.total}</strong>
+                    </div>
+                `;
+                log('📊 Total calculated for payment intent', {
+                    calculatedTotal: calculatedTotal,
+                    breakdown: data.data
+                });
+            } else {
+                document.getElementById('totalsResponse').style.display = 'block';
+                document.getElementById('totalsResponse').innerHTML = `
+                    <div class="error-box">
+                        ❌ Failed to calculate totals: ${data ? data.message : 'Unknown error'}
+                    </div>
+                `;
+            }
+        }
+
+        async function createPaymentIntentSimple() {
+            if (!calculatedTotal) {
+                alert('Please calculate totals first!');
+                return;
+            }
+
+            const requestData = {
+                amount: calculatedTotal,
+                currency: 'usd',
+                shipping_address: shippingAddress,
+                shipping_method: document.getElementById('shippingMethod').value
+            };
+
+            log('💳 Creating SIMPLE payment intent with calculated total', requestData);
+
+            const data = await apiRequest('/payments/create-intent-simple', 'POST', requestData);
+
+            if (data) {
+                document.getElementById('paymentResponse').style.display = 'block';
+
+                if (data.success) {
+                    document.getElementById('paymentResponse').innerHTML = `
+                        <div class="success-box">
+                            ✅ Simple Payment intent created successfully!<br>
+                            Amount: $${data.data.amount}<br>
+                            Payment Intent ID: ${data.data.payment_intent_id}<br>
+                            Currency: ${data.data.currency}<br>
+                            <strong>Method: Simple (No backend verification)</strong>
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('paymentResponse').innerHTML = `
+                        <div class="error-box">
+                            ❌ Simple Payment intent failed: ${data.message}<br>
+                            ${data.debug ? JSON.stringify(data.debug, null, 2) : ''}
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        async function createPaymentIntentStandard() {
+            if (!calculatedTotal) {
+                alert('Please calculate totals first!');
+                return;
+            }
+
+            const requestData = {
+                amount: calculatedTotal,
+                currency: 'usd',
+                shipping_address: shippingAddress,
+                shipping_method: document.getElementById('shippingMethod').value
+            };
+
+            log('💳 Creating STANDARD payment intent with calculated total', requestData);
+
+            const data = await apiRequest('/payments/create-intent', 'POST', requestData);
+
+            if (data) {
+                document.getElementById('paymentResponse').style.display = 'block';
+
+                if (data.success) {
+                    document.getElementById('paymentResponse').innerHTML = `
+                        <div class="success-box">
+                            ✅ Standard Payment intent created successfully!<br>
+                            Amount: $${data.data.amount}<br>
+                            Payment Intent ID: ${data.data.payment_intent_id}<br>
+                            Currency: ${data.data.currency}<br>
+                            <strong>Method: Standard (With backend verification)</strong>
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('paymentResponse').innerHTML = `
+                        <div class="error-box">
+                            ❌ Standard Payment intent failed: ${data.message}<br>
+                            ${data.debug ? `
+                                <strong>Debug Info:</strong><br>
+                                Calculated: $${data.debug.calculated_amount}<br>
+                                Requested: $${data.debug.request_amount}<br>
+                                Difference: $${data.debug.difference}<br>
+                                ${data.debug.percentage_difference ? `Percentage: ${data.debug.percentage_difference}<br>` : ''}
+                                ${data.debug.suggestions ? `<br><strong>Suggestions:</strong><br>${data.debug.suggestions.join('<br>')}` : ''}
+                            ` : ''}
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        async function debugPaymentCalculation() {
+            const requestData = {
+                amount: calculatedTotal || 0,
+                currency: 'usd',
+                shipping_address: shippingAddress,
+                shipping_method: document.getElementById('shippingMethod').value
+            };
+
+            log('🔍 Debugging payment calculation', requestData);
+
+            const data = await apiRequest('/payments/debug/calculation', 'POST', requestData);
+
+            if (data) {
+                document.getElementById('paymentResponse').style.display = 'block';
+
+                if (data.success) {
+                    const debug = data.debug;
+                    document.getElementById('paymentResponse').innerHTML = `
+                        <div class="success-box">
+                            🔍 <strong>Debug Analysis Complete</strong><br><br>
+                            
+                            <strong>Manual Cart Calculation:</strong><br>
+                            Subtotal: $${debug.manual_calculation.subtotal}<br>
+                            Items Count: ${debug.manual_calculation.cart_items_count}<br><br>
+                            
+                            <strong>Checkout Controller:</strong><br>
+                            ${debug.checkout_controller_calculation.success ? `
+                                Subtotal: $${debug.checkout_controller_calculation.data.subtotal}<br>
+                                Tax: $${debug.checkout_controller_calculation.data.tax.amount} (${debug.checkout_controller_calculation.data.tax.description})<br>
+                                Shipping: $${debug.checkout_controller_calculation.data.shipping.cost}<br>
+                                Total: $${debug.checkout_controller_calculation.data.total}
+                            ` : `Error: ${debug.checkout_controller_calculation.message}`}<br><br>
+                            
+                            <strong>Comparison:</strong><br>
+                            Frontend Amount: $${debug.comparison.requested_amount || 'N/A'}<br>
+                            Backend Total: $${debug.comparison.checkout_total}<br>
+                            Difference: $${debug.comparison.difference_from_checkout || 'N/A'}<br><br>
+                            
+                            <strong>Cart Details:</strong><br>
+                            ${debug.manual_calculation.cart_details.map(item =>
+                        `${item.product_name}: $${item.price} x ${item.quantity} = $${item.line_total}`
+                    ).join('<br>')}
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('paymentResponse').innerHTML = `
+                        <div class="error-box">
+                            ❌ Debug calculation failed: ${data.message}<br>
+                            ${data.debug ? JSON.stringify(data.debug, null, 2) : ''}
+                        </div>
+                    `;
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>

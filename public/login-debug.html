@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Debug Tool</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        input[type="password"],
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        input:focus {
+            border-color: #007bff;
+            outline: none;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .debug-btn {
+            background-color: #28a745;
+        }
+
+        .debug-btn:hover {
+            background-color: #1e7e34;
+        }
+
+        .test-btn {
+            background-color: #ffc107;
+            color: #212529;
+        }
+
+        .test-btn:hover {
+            background-color: #e0a800;
+        }
+
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 6px;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+        }
+
+        .error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+
+        .success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+
+        .warning {
+            background-color: #fff3cd;
+            border-color: #ffeaa7;
+            color: #856404;
+        }
+
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: 14px;
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #e9ecef;
+        }
+
+        .step {
+            background-color: #e7f3ff;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #007bff;
+            border-radius: 4px;
+        }
+
+        .user-card {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🔧 Login Debug Tool</h1>
+        <p>This tool will help diagnose login issues for admin users.</p>
+
+        <div class="form-group">
+            <label for="apiUrl">API Base URL:</label>
+            <input type="text" id="apiUrl" value="http://127.0.0.1:8000/api">
+        </div>
+
+        <div class="form-group">
+            <label for="testUser">Test User:</label>
+            <select id="testUser">
+                <option value="custom">Custom Credentials</option>
+                <option value="admin@example.com">admin@example.com</option>
+                <option value="user@example.com">user@example.com</option>
+                <option value="test@example.com">test@example.com</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="email">Email:</label>
+            <input type="email" id="email" value="admin@example.com" required>
+        </div>
+
+        <div class="form-group">
+            <label for="password">Password:</label>
+            <input type="password" id="password" value="password123" required>
+        </div>
+
+        <button onclick="runFullDiagnostic()">🚀 Run Full Diagnostic</button>
+        <button onclick="testLogin()" class="debug-btn">🔐 Test Login Only</button>
+        <button onclick="testAuthCheck()" class="test-btn">✅ Test Auth Check</button>
+        <button onclick="checkUsers()" class="test-btn">👥 Check Users</button>
+
+        <div id="result" class="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        const testUsers = {
+            'admin@example.com': 'password123',
+            'user@example.com': 'password123',
+            'test@example.com': 'password123'
+        };
+
+        document.getElementById('testUser').addEventListener('change', function () {
+            const selected = this.value;
+            if (selected !== 'custom') {
+                document.getElementById('email').value = selected;
+                document.getElementById('password').value = testUsers[selected] || 'password123';
+            }
+        });
+
+        async function runFullDiagnostic() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result';
+            resultDiv.innerHTML = '<h3>🔍 Running Full Diagnostic...</h3>';
+
+            let fullReport = '';
+
+            // Step 1: Check API connectivity
+            fullReport += '<div class="step"><h4>Step 1: API Connectivity Test</h4>';
+            try {
+                const healthResponse = await fetch(`${getApiUrl()}/health`);
+                const healthData = await healthResponse.json();
+                fullReport += `✅ API is accessible<br>`;
+                fullReport += `Laravel Version: ${healthData.laravel}<br>`;
+                fullReport += `Timestamp: ${healthData.timestamp}`;
+            } catch (error) {
+                fullReport += `❌ API connectivity failed: ${error.message}`;
+            }
+            fullReport += '</div>';
+
+            // Step 2: CORS Test
+            fullReport += '<div class="step"><h4>Step 2: CORS Test</h4>';
+            try {
+                const corsResponse = await fetch(`${getApiUrl()}/cors-test`);
+                const corsData = await corsResponse.json();
+                fullReport += `✅ CORS is working<br>`;
+                fullReport += `Origin: ${corsData.origin || 'Not set'}`;
+            } catch (error) {
+                fullReport += `❌ CORS test failed: ${error.message}`;
+            }
+            fullReport += '</div>';
+
+            // Step 3: User List
+            fullReport += '<div class="step"><h4>Step 3: Available Users</h4>';
+            await checkUsersInternal(false);
+            fullReport += document.getElementById('userList')?.innerHTML || 'No user data available';
+            fullReport += '</div>';
+
+            // Step 4: Login Test
+            fullReport += '<div class="step"><h4>Step 4: Login Test</h4>';
+            const loginResult = await testLoginInternal();
+            fullReport += loginResult;
+            fullReport += '</div>';
+
+            // Step 5: Auth Check (if login was successful)
+            if (window.authToken) {
+                fullReport += '<div class="step"><h4>Step 5: Authentication Check</h4>';
+                const authResult = await testAuthCheckInternal();
+                fullReport += authResult;
+                fullReport += '</div>';
+            }
+
+            resultDiv.innerHTML = `<h3>📊 Full Diagnostic Report</h3>${fullReport}`;
+        }
+
+        async function testLogin() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<h3>🔐 Testing Login...</h3>';
+
+            const result = await testLoginInternal();
+            resultDiv.innerHTML = `<h3>🔐 Login Test Result</h3>${result}`;
+        }
+
+        async function testLoginInternal() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch(`${getApiUrl()}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    window.authToken = data.data.token;
+
+                    return `
+                        <div class="success">
+                            <h4>✅ Login Successful!</h4>
+                            <div class="user-card">
+                                <strong>User Info:</strong><br>
+                                ID: ${data.data.user.id}<br>
+                                Name: ${data.data.user.name}<br>
+                                Email: ${data.data.user.email}<br>
+                                Role: ${data.data.role}<br>
+                                Is Admin: ${data.data.is_admin ? 'Yes' : 'No'}<br>
+                                Redirect To: <strong>${data.data.redirect_to}</strong><br>
+                                Token: ${data.data.token.substring(0, 20)}...
+                            </div>
+                            <details>
+                                <summary>Full Response</summary>
+                                <pre>${JSON.stringify(data, null, 2)}</pre>
+                            </details>
+                        </div>
+                    `;
+                } else {
+                    return `
+                        <div class="error">
+                            <h4>❌ Login Failed (${response.status})</h4>
+                            <p><strong>Message:</strong> ${data.message}</p>
+                            ${data.errors ? `<p><strong>Errors:</strong> ${JSON.stringify(data.errors)}</p>` : ''}
+                            <details>
+                                <summary>Full Response</summary>
+                                <pre>${JSON.stringify(data, null, 2)}</pre>
+                            </details>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                return `
+                    <div class="error">
+                        <h4>❌ Network Error</h4>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function testAuthCheck() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<h3>✅ Testing Authentication Check...</h3>';
+
+            const result = await testAuthCheckInternal();
+            resultDiv.innerHTML = `<h3>✅ Auth Check Result</h3>${result}`;
+        }
+
+        async function testAuthCheckInternal() {
+            if (!window.authToken) {
+                return '<div class="warning">⚠️ No auth token available. Please login first.</div>';
+            }
+
+            try {
+                const response = await fetch(`${getApiUrl()}/auth/check`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${window.authToken}`,
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    return `
+                        <div class="success">
+                            <h4>✅ Authentication Valid!</h4>
+                            <div class="user-card">
+                                <strong>User Status:</strong><br>
+                                Authenticated: ${data.authenticated ? 'Yes' : 'No'}<br>
+                                Is Admin: ${data.data.is_admin ? 'Yes' : 'No'}<br>
+                                Role: ${data.data.role}<br>
+                                Redirect To: <strong>${data.data.redirect_to}</strong><br>
+                                Permissions: ${JSON.stringify(data.data.permissions)}
+                            </div>
+                            <details>
+                                <summary>Full Response</summary>
+                                <pre>${JSON.stringify(data, null, 2)}</pre>
+                            </details>
+                        </div>
+                    `;
+                } else {
+                    return `
+                        <div class="error">
+                            <h4>❌ Authentication Failed (${response.status})</h4>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                return `
+                    <div class="error">
+                        <h4>❌ Network Error</h4>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function checkUsers() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<h3>👥 Checking Available Users...</h3>';
+
+            await checkUsersInternal(true);
+        }
+
+        async function checkUsersInternal(showInResult = true) {
+            try {
+                const response = await fetch('/check_users_endpoint.php');
+                const data = await response.text();
+
+                const userListDiv = showInResult ? document.getElementById('result') : document.createElement('div');
+                if (!showInResult) {
+                    userListDiv.id = 'userList';
+                }
+
+                userListDiv.innerHTML = `
+                    <h3>👥 Available Users</h3>
+                    <div class="user-card">
+                        <pre>${data}</pre>
+                    </div>
+                `;
+
+                if (showInResult) {
+                    userListDiv.style.display = 'block';
+                }
+            } catch (error) {
+                const message = `
+                    <div class="warning">
+                        <h4>⚠️ Could not fetch user list</h4>
+                        <p>Try these default credentials:</p>
+                        <ul>
+                            <li>admin@example.com / password123</li>
+                            <li>user@example.com / password123</li>
+                            <li>test@example.com / password123</li>
+                        </ul>
+                    </div>
+                `;
+
+                if (showInResult) {
+                    document.getElementById('result').innerHTML = message;
+                    document.getElementById('result').style.display = 'block';
+                }
+            }
+        }
+
+        function getApiUrl() {
+            return document.getElementById('apiUrl').value.replace(/\/$/, '');
+        }
+    </script>
+</body>
+
+</html>
