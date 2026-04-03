@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Cart;
+use App\Models\Coupon;
 use App\Http\Controllers\Api\CheckoutController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -154,7 +155,7 @@ class PaymentController extends Controller
 
         $validator = Validator::make($request->all(), [
             'amount' => 'required|numeric|min:0.50',
-            'currency' => 'string|in:usd,eur,gbp,inr,cad,aud',
+            'currency' => 'string|in:usd,inr',
             'shipping_address' => 'nullable|array',
             'shipping_method' => 'nullable|string|in:standard,express,overnight',
         ]);
@@ -182,7 +183,7 @@ class PaymentController extends Controller
             // Create payment intent
             $paymentIntent = PaymentIntent::create([
                 'amount' => $stripeAmount,
-                'currency' => $request->currency ?? 'usd',
+                'currency' => $request->currency ?? 'inr',
                 'metadata' => [
                     'user_id' => $request->user()->id,
                     'order_type' => 'cart_checkout_simple',
@@ -237,7 +238,7 @@ class PaymentController extends Controller
 
         $validator = Validator::make($request->all(), [
             'amount' => 'required|numeric|min:0.50',
-            'currency' => 'string|in:usd,eur,gbp,inr,cad,aud',
+            'currency' => 'string|in:usd,inr',
             // Shipping address and method for accurate tax and shipping calculation
             'shipping_address' => 'nullable|array',
             'shipping_address.country' => 'required_with:shipping_address|string|size:2',
@@ -419,7 +420,7 @@ class PaymentController extends Controller
             // Create payment intent
             $paymentIntent = PaymentIntent::create([
                 'amount' => $finalAmount,
-                'currency' => $request->currency ?? 'usd',
+                'currency' => $request->currency ?? 'inr',
                 'metadata' => [
                     'user_id' => $request->user()->id,
                     'order_type' => 'cart_checkout'
@@ -480,7 +481,12 @@ class PaymentController extends Controller
             'shipping_address.city' => 'required|string',
             'shipping_address.state' => 'nullable|string',
             'shipping_address.postal_code' => 'required|string',
-            'shipping_address.country' => 'required|string|size:2',
+            'shipping_address.country' => 'required|string',
+            'coupon_code' => 'nullable|string',
+            'cart_items' => 'nullable|array|min:1',
+            'cart_items.*.product_id' => 'required_with:cart_items|integer|exists:products,id',
+            'cart_items.*.quantity' => 'required_with:cart_items|integer|min:1',
+            'cart_items.*.price' => 'required_with:cart_items|numeric|min:0',
         ]);
 
         if ($validator->fails()) {
@@ -555,132 +561,186 @@ class PaymentController extends Controller
                 ]);
             }
 
-            // Get user's cart items
-            $cartItems = Cart::with(['product'])
-                ->where('user_id', $request->user()->id)
-                ->get();
+            // ── Resolve cart items ────────────────────────────────────────────
+            // Prefer cart_items sent directly in the request body; fall back to
+            // the user's DB cart so the old flow still works.
+            $useRequestItems = $request->has('cart_items') && !empty($request->cart_items);
 
-            \Log::info('Cart items retrieved for order creation', [
-                'user_id' => $request->user()->id,
-                'cart_items_count' => $cartItems->count()
-            ]);
+            if ($useRequestItems) {
+                // ── Path A: frontend sent cart_items in the request body ──────
+                $requestItems = collect($request->cart_items);
 
-            if ($cartItems->isEmpty()) {
-                DB::rollBack();
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Cart is empty'
-                ], 400);
+                // Load products in one query for names / sku / images / stock
+                $products = \App\Models\Product::whereIn('id', $requestItems->pluck('product_id'))
+                    ->get()->keyBy('id');
+
+                $subtotal = $requestItems->sum(fn($i) => $i['price'] * $i['quantity']);
+                $tax      = 0;
+                $shipping = 0;
+                $total    = $subtotal;
+
+                \Log::info('Using cart_items from request body', [
+                    'user_id'    => $request->user()->id,
+                    'item_count' => $requestItems->count(),
+                    'subtotal'   => $subtotal,
+                ]);
+
+            } else {
+                // ── Path B: fetch from DB cart ────────────────────────────────
+                $dbCartItems = Cart::with(['product'])
+                    ->where('user_id', $request->user()->id)
+                    ->get();
+
+                \Log::info('Using DB cart', [
+                    'user_id'    => $request->user()->id,
+                    'item_count' => $dbCartItems->count(),
+                ]);
+
+                if ($dbCartItems->isEmpty()) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Cart is empty. Please provide cart_items in the request or ensure your cart is not empty.',
+                    ], 400);
+                }
+
+                // Calculate totals via CheckoutController
+                $checkoutController = new \App\Http\Controllers\Api\CheckoutController();
+                $totalsRequest = new \Illuminate\Http\Request();
+                $totalsRequest->setUserResolver(fn() => $request->user());
+
+                $totalsResponse = $checkoutController->calculateTotals($totalsRequest);
+                $totalsData     = $totalsResponse->getData(true);
+
+                if (!$totalsData['success']) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Error calculating order totals: ' . $totalsData['message'],
+                    ], 400);
+                }
+
+                $subtotal = $totalsData['data']['subtotal'];
+                $tax      = $totalsData['data']['tax']['amount'];
+                $shipping = $totalsData['data']['shipping']['cost'];
+                $total    = $totalsData['data']['total'];
             }
 
-            // Calculate order totals using CheckoutController logic
-            $checkoutController = new \App\Http\Controllers\Api\CheckoutController();
-            $totalsRequest = new \Illuminate\Http\Request();
-            $totalsRequest->setUserResolver(function() use ($request) {
-                return $request->user();
-            });
-            
-            $totalsResponse = $checkoutController->calculateTotals($totalsRequest);
-            $totalsData = $totalsResponse->getData(true);
-            
-            if (!$totalsData['success']) {
-                DB::rollBack();
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Error calculating order totals: ' . $totalsData['message']
-                ], 400);
+            // ── Apply coupon ──────────────────────────────────────────────────
+            $discountAmount = 0;
+            $couponCode     = null;
+            if ($request->coupon_code) {
+                $coupon = Coupon::where('code', strtoupper($request->coupon_code))->first();
+                if ($coupon && $coupon->isUsable($request->user()->id)) {
+                    if (!$coupon->minimum_amount || $subtotal >= $coupon->minimum_amount) {
+                        $discountAmount = $coupon->calculateDiscount($subtotal);
+                        $couponCode     = $coupon->code;
+                        $total          = max(0, $total - $discountAmount);
+                    }
+                }
             }
-            
-            $subtotal = $totalsData['data']['subtotal'];
-            $tax = $totalsData['data']['tax']['amount'];
-            $shipping = $totalsData['data']['shipping']['cost'];
-            $total = $totalsData['data']['total'];
 
-            \Log::info('Order totals calculated', [
+            \Log::info('Order totals resolved', [
                 'subtotal' => $subtotal,
-                'tax' => $tax,
+                'tax'      => $tax,
                 'shipping' => $shipping,
-                'total' => $total
+                'total'    => $total,
+                'discount' => $discountAmount,
             ]);
 
-            // Create order
+            // ── Create order ──────────────────────────────────────────────────
             \Log::info('Attempting to create order', [
-                'user_id' => $request->user()->id,
-                'total_amount' => $total
+                'user_id'      => $request->user()->id,
+                'total_amount' => $total,
             ]);
 
             $order = Order::create([
-                'user_id' => $request->user()->id,
-                'order_number' => 'ORD-' . strtoupper(uniqid()),
-                'status' => 'processing',
-                'subtotal' => $subtotal,
-                'tax_amount' => $tax,
-                'shipping_amount' => $shipping,
-                'shipping_cost' => $shipping, // Keep both for compatibility
-                'total_amount' => $total,
-                'currency' => $paymentIntent->currency,
-                'payment_status' => 'paid',
-                'payment_method' => 'stripe',
-                'payment_id' => $paymentIntent->id,
-                'payment_reference' => $paymentIntent->id,
+                'user_id'          => $request->user()->id,
+                'order_number'     => 'ORD-' . strtoupper(uniqid()),
+                'status'           => 'confirmed',
+                'subtotal'         => $subtotal,
+                'tax_amount'       => $tax,
+                'shipping_amount'  => $shipping,
+                'shipping_cost'    => $shipping,
+                'total_amount'     => $total,
+                'currency'         => $paymentIntent->currency,
+                'payment_status'   => 'paid',
+                'payment_method'   => 'stripe',
+                'payment_id'       => $paymentIntent->id,
+                'payment_reference'=> $paymentIntent->id,
                 'shipping_address' => json_encode($request->shipping_address),
-                'billing_address' => json_encode($request->shipping_address), // Same as shipping for now
+                'billing_address'  => json_encode($request->shipping_address),
+                'discount_amount'  => $discountAmount,
+                'coupon_code'      => $couponCode,
             ]);
 
             \Log::info('Order created successfully', [
-                'order_id' => $order->id,
-                'order_number' => $order->order_number
+                'order_id'     => $order->id,
+                'order_number' => $order->order_number,
             ]);
 
-            // Create order items
+            // ── Create order items ────────────────────────────────────────────
             \Log::info('Creating order items', ['order_id' => $order->id]);
 
-            foreach ($cartItems as $cartItem) {
-                $price = $cartItem->product->sale_price ?: $cartItem->product->price;
-                
-                \Log::info('Creating order item', [
-                    'product_id' => $cartItem->product_id,
-                    'product_name' => $cartItem->product->name,
-                    'quantity' => $cartItem->quantity,
-                    'price' => $price
-                ]);
-                
-                // Ensure we have all required product data
-                if (!$cartItem->product || !$cartItem->product->name) {
-                    throw new \Exception("Product data missing for product ID: {$cartItem->product_id}");
+            if ($useRequestItems) {
+                foreach ($requestItems as $item) {
+                    $product = $products->get($item['product_id']);
+                    if (!$product) {
+                        throw new \Exception("Product not found for ID: {$item['product_id']}");
+                    }
+
+                    OrderItem::create([
+                        'order_id'      => $order->id,
+                        'product_id'    => $item['product_id'],
+                        'product_name'  => $product->name,
+                        'product_sku'   => $product->sku ?? '',
+                        'product_image' => $product->images
+                            ? (is_array($product->images) ? ($product->images[0] ?? '') : $product->images)
+                            : '',
+                        'quantity'      => $item['quantity'],
+                        'price'         => $item['price'],
+                        'total'         => $item['price'] * $item['quantity'],
+                        'product_options' => null,
+                    ]);
+
+                    // Decrement stock
+                    $product->decrement('stock', $item['quantity']);
                 }
-                
-                OrderItem::create([
-                    'order_id' => $order->id,
-                    'product_id' => $cartItem->product_id,
-                    'product_name' => $cartItem->product->name,
-                    'product_sku' => $cartItem->product->sku ?? '',
-                    'product_image' => $cartItem->product->images ? (is_array($cartItem->product->images) ? ($cartItem->product->images[0] ?? '') : $cartItem->product->images) : '',
-                    'quantity' => $cartItem->quantity,
-                    'price' => $price,
-                    'total' => $price * $cartItem->quantity,
-                    'product_options' => null, // Add this if you have product variants
-                ]);
+            } else {
+                foreach ($dbCartItems as $cartItem) {
+                    if (!$cartItem->product || !$cartItem->product->name) {
+                        throw new \Exception("Product data missing for product ID: {$cartItem->product_id}");
+                    }
 
-                \Log::info('Order item created successfully', [
-                    'product_id' => $cartItem->product_id,
-                    'product_name' => $cartItem->product->name
-                ]);
+                    $price = $cartItem->product->sale_price ?: $cartItem->product->price;
 
-                \Log::info('Updating product stock', [
-                    'product_id' => $cartItem->product_id,
-                    'current_stock' => $cartItem->product->stock,
-                    'decrement_by' => $cartItem->quantity
-                ]);
+                    OrderItem::create([
+                        'order_id'      => $order->id,
+                        'product_id'    => $cartItem->product_id,
+                        'product_name'  => $cartItem->product->name,
+                        'product_sku'   => $cartItem->product->sku ?? '',
+                        'product_image' => $cartItem->product->images
+                            ? (is_array($cartItem->product->images) ? ($cartItem->product->images[0] ?? '') : $cartItem->product->images)
+                            : '',
+                        'quantity'      => $cartItem->quantity,
+                        'price'         => $price,
+                        'total'         => $price * $cartItem->quantity,
+                        'product_options' => null,
+                    ]);
 
-                // Update product stock
-                $cartItem->product->decrement('stock', $cartItem->quantity);
+                    $cartItem->product->decrement('stock', $cartItem->quantity);
+                }
             }
 
             \Log::info('All order items created, clearing cart');
 
-            // Clear the cart
+            // Clear the DB cart regardless of which path was used
             Cart::where('user_id', $request->user()->id)->delete();
+
+            // Increment coupon usage count
+            if ($couponCode) {
+                Coupon::where('code', $couponCode)->increment('used_count');
+            }
 
             DB::commit();
 
@@ -691,8 +751,9 @@ class PaymentController extends Controller
                 'success' => true,
                 'message' => 'Order created successfully',
                 'data' => [
-                    'order' => $order,
+                    'order'        => $order,
                     'order_number' => $order->order_number,
+                    'order_id'     => $order->id,
                 ]
             ]);
 

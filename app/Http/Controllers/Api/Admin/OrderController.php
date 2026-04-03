@@ -155,7 +155,16 @@ class OrderController extends Controller
         }
 
         $oldStatus = $order->status;
-        $order->update(['status' => $request->status]);
+        $updateData = ['status' => $request->status];
+
+        if ($request->status === 'shipped' && !$order->shipped_at) {
+            $updateData['shipped_at'] = now();
+        }
+        if ($request->status === 'delivered' && !$order->delivered_at) {
+            $updateData['delivered_at'] = now();
+        }
+
+        $order->update($updateData);
 
         // Log the status change
         \Log::info('Order status updated', [

@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\AddressController;
 use App\Http\Controllers\Api\PaymentControllerDebug;
 use App\Http\Controllers\Api\CheckoutController;
+use App\Http\Controllers\Api\CouponController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -112,18 +113,16 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('create-intent-simple', [PaymentController::class, 'createPaymentIntentSimple']);
         Route::post('confirm', [PaymentController::class, 'confirmPayment']);
         Route::get('methods', [PaymentController::class, 'getPaymentMethods']);
-        
-        // Debug routes
-        Route::post('debug/calculation', [PaymentController::class, 'debugPaymentCalculation']);
-        Route::get('debug/requirements', [PaymentControllerDebug::class, 'debugPaymentRequirements']);
-        Route::post('debug/create-intent', [PaymentControllerDebug::class, 'createPaymentIntentDebug']);
-        Route::post('debug/simulate-intent', [PaymentControllerDebug::class, 'simulatePaymentIntent']);
     });
+
+    // Coupon validation (any authenticated user)
+    Route::post('coupons/validate', [CouponController::class, 'validate']);
 
     // Order routes for users
     Route::group(['prefix' => 'orders'], function () {
         Route::get('/', [OrderController::class, 'index']);
         Route::get('/{orderNumber}', [OrderController::class, 'show']);
+        Route::post('/{orderNumber}/cancel', [OrderController::class, 'cancel']);
     });
 
     // Fallback users endpoint (requires admin access)
@@ -138,6 +137,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/{review}', [ReviewController::class, 'show']);
         Route::put('/{review}', [ReviewController::class, 'update']);
         Route::delete('/{review}', [ReviewController::class, 'destroy']);
+        Route::post('/{review}/helpful', [ReviewController::class, 'markHelpful']);
     });
     
     // Wishlist routes
@@ -242,6 +242,31 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/stats', [DashboardController::class, 'getStats']);
             Route::get('/recent-orders', [DashboardController::class, 'getRecentOrders']);
             Route::get('/product-stats', [DashboardController::class, 'getProductStats']);
+        });
+
+        // Admin: Coupon management
+        Route::group(['prefix' => 'admin/coupons'], function () {
+            Route::get('/', [CouponController::class, 'index']);
+            Route::post('/', [CouponController::class, 'store']);
+            Route::get('/{id}', [CouponController::class, 'show']);
+            Route::put('/{id}', [CouponController::class, 'update']);
+            Route::delete('/{id}', [CouponController::class, 'destroy']);
+        });
+
+        // Admin: Review moderation
+        Route::group(['prefix' => 'admin/reviews'], function () {
+            Route::get('/', [ReviewController::class, 'adminIndex']);
+            Route::put('/{review}/approve', [ReviewController::class, 'approve']);
+            Route::put('/{review}/reject', [ReviewController::class, 'reject']);
+            Route::delete('/{review}', [ReviewController::class, 'adminDestroy']);
+        });
+
+        // Admin: Debug payment tools
+        Route::group(['prefix' => 'payments/debug'], function () {
+            Route::post('calculation', [PaymentController::class, 'debugPaymentCalculation']);
+            Route::get('requirements', [PaymentControllerDebug::class, 'debugPaymentRequirements']);
+            Route::post('create-intent', [PaymentControllerDebug::class, 'createPaymentIntentDebug']);
+            Route::post('simulate-intent', [PaymentControllerDebug::class, 'simulatePaymentIntent']);
         });
 
         // Admin Profile endpoints

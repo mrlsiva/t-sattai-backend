@@ -150,6 +150,19 @@ class ReviewController extends Controller
     }
 
     /**
+     * Show a single review
+     */
+    public function show(Review $review)
+    {
+        $review->load('user', 'product');
+
+        return response()->json([
+            'success' => true,
+            'data' => $review,
+        ]);
+    }
+
+    /**
      * Mark review as helpful
      */
     public function markHelpful(Request $request, Review $review)
@@ -160,6 +173,89 @@ class ReviewController extends Controller
             'success' => true,
             'message' => 'Marked as helpful',
             'data' => ['helpful_count' => $review->helpful_count]
+        ]);
+    }
+
+    /**
+     * Admin: list all reviews (with optional filters)
+     * GET /api/admin/reviews
+     */
+    public function adminIndex(Request $request)
+    {
+        $query = Review::with(['user', 'product']);
+
+        if ($request->has('is_approved') && $request->is_approved !== '') {
+            $query->where('is_approved', filter_var($request->is_approved, FILTER_VALIDATE_BOOLEAN));
+        }
+
+        if ($request->has('product_id')) {
+            $query->where('product_id', $request->product_id);
+        }
+
+        if ($request->has('rating')) {
+            $query->where('rating', $request->rating);
+        }
+
+        $reviews = $query->orderBy('created_at', 'desc')
+            ->paginate($request->get('limit', 20));
+
+        return response()->json([
+            'success' => true,
+            'data' => $reviews->items(),
+            'pagination' => [
+                'current_page' => $reviews->currentPage(),
+                'per_page'     => $reviews->perPage(),
+                'total'        => $reviews->total(),
+                'last_page'    => $reviews->lastPage(),
+            ],
+        ]);
+    }
+
+    /**
+     * Admin: approve a review
+     * PUT /api/admin/reviews/{review}/approve
+     */
+    public function approve(Review $review)
+    {
+        $review->update(['is_approved' => true]);
+        $this->updateProductRating($review->product);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Review approved',
+            'data'    => $review,
+        ]);
+    }
+
+    /**
+     * Admin: reject/unapprove a review
+     * PUT /api/admin/reviews/{review}/reject
+     */
+    public function reject(Review $review)
+    {
+        $review->update(['is_approved' => false]);
+        $this->updateProductRating($review->product);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Review rejected',
+            'data'    => $review,
+        ]);
+    }
+
+    /**
+     * Admin: delete any review
+     * DELETE /api/admin/reviews/{review}
+     */
+    public function adminDestroy(Review $review)
+    {
+        $product = $review->product;
+        $review->delete();
+        $this->updateProductRating($product);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Review deleted',
         ]);
     }
 

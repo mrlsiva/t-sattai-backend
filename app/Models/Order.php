@@ -24,6 +24,8 @@ class Order extends Model
         'payment_reference',
         'shipping_address',
         'billing_address',
+        'discount_amount',
+        'coupon_code',
         'notes',
         'shipped_at',
         'delivered_at',
@@ -37,6 +39,7 @@ class Order extends Model
         'total_amount' => 'decimal:2',
         'shipping_address' => 'array',
         'billing_address' => 'array',
+        'discount_amount' => 'decimal:2',
         'shipped_at' => 'datetime',
         'delivered_at' => 'datetime',
     ];

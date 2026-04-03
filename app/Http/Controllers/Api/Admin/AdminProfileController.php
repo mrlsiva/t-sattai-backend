@@ -25,7 +25,7 @@ class AdminProfileController extends Controller
             // Calculate admin statistics
             $stats = [
                 'orders_managed' => \App\Models\Order::count(),
-                'users_supervised' => \App\Models\User::where('role', 'user')->count(),
+                'users_supervised' => \App\Models\User::where('role', 'customer')->count(),
                 'products_added' => \App\Models\Product::count(),
                 'login_sessions' => 1 // You can implement session tracking later
             ];
@@ -282,7 +282,7 @@ class AdminProfileController extends Controller
         try {
             $stats = [
                 'orders_managed' => \App\Models\Order::count(),
-                'users_supervised' => \App\Models\User::where('role', 'user')->count(),
+                'users_supervised' => \App\Models\User::where('role', 'customer')->count(),
                 'products_added' => \App\Models\Product::count(),
                 'login_sessions' => 1,
                 'recent_activities' => [
@@ -346,9 +346,9 @@ class AdminProfileController extends Controller
                 ], 422);
             }
 
-            // Soft delete the account
+            // Deactivate the account (no SoftDeletes on User model)
             $admin->update([
-                'deleted_at' => now(),
+                'is_active' => false,
                 'email' => $admin->email . '_deleted_' . time()
             ]);
 

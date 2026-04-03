@@ -107,8 +107,8 @@ class CategoryController extends Controller
     public function show(Category $category)
     {
         $category->load(['parent', 'children', 'products' => function($query) {
-            $query->select('id', 'name', 'slug', 'price', 'sale_price', 'stock_quantity', 'is_featured', 'category_id')
-                  ->where('status', 'active')
+            $query->select('id', 'name', 'slug', 'price', 'sale_price', 'stock', 'is_featured', 'category_id')
+                  ->where('is_active', true)
                   ->take(10);
         }]);
 

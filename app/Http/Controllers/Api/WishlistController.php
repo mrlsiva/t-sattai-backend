@@ -28,23 +28,20 @@ class WishlistController extends Controller
     /**
      * Add item to wishlist
      */
-    public function store(Request $request)
+    public function store(Request $request, $productId)
     {
-        $validator = Validator::make($request->all(), [
-            'product_id' => 'required|exists:products,id',
-        ]);
+        $product = Product::find($productId);
 
-        if ($validator->fails()) {
+        if (!$product) {
             return response()->json([
                 'success' => false,
-                'message' => 'Validation error',
-                'errors' => $validator->errors()
-            ], 422);
+                'message' => 'Product not found'
+            ], 404);
         }
 
         // Check if item already exists in wishlist
         $existingItem = Wishlist::where('user_id', $request->user()->id)
-            ->where('product_id', $request->product_id)
+            ->where('product_id', $productId)
             ->first();
 
         if ($existingItem) {
@@ -56,7 +53,7 @@ class WishlistController extends Controller
 
         $wishlistItem = Wishlist::create([
             'user_id' => $request->user()->id,
-            'product_id' => $request->product_id,
+            'product_id' => $productId,
         ]);
 
         $wishlistItem->load('product.category');

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\Coupon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
@@ -156,5 +157,63 @@ class OrderController extends Controller
             'data' => $transformedOrder,
             'message' => 'Order retrieved successfully'
         ]);
+    }
+
+    /**
+     * Cancel an order (customer)
+     * POST /api/orders/{orderNumber}/cancel
+     */
+    public function cancel(Request $request, $orderNumber)
+    {
+        $order = Order::with(['orderItems.product'])
+            ->where('user_id', $request->user()->id)
+            ->where('order_number', $orderNumber)
+            ->first();
+
+        if (!$order) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Order not found',
+            ], 404);
+        }
+
+        // Only pending or processing orders can be cancelled by the customer
+        if (!in_array($order->status, ['pending', 'processing'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This order cannot be cancelled. Only pending or processing orders can be cancelled.',
+            ], 400);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Restore product stock
+            foreach ($order->orderItems as $item) {
+                if ($item->product) {
+                    $item->product->increment('stock', $item->quantity);
+                }
+            }
+
+            // Refund coupon usage count if applicable
+            if ($order->coupon_code) {
+                Coupon::where('code', $order->coupon_code)->decrement('used_count');
+            }
+
+            $order->update(['status' => 'cancelled']);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Order cancelled successfully',
+                'data' => ['order_number' => $order->order_number, 'status' => 'cancelled'],
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to cancel order: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 }
