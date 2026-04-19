@@ -65,7 +65,7 @@ class CategoryController extends Controller
             'is_active' => 'boolean',
             'meta_title' => 'nullable|string|max:255',
             'meta_description' => 'nullable|string|max:500',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048'
+            'image' => 'nullable|image|mimes:jpeg,png,webp,gif|max:2048',
         ]);
 
         if ($validator->fails()) {
@@ -80,12 +80,8 @@ class CategoryController extends Controller
         
         // Handle image upload
         if ($request->hasFile('image')) {
-            $image = $request->file('image');
-            $imageName = time() . '_' . Str::random(10) . '.' . $image->getClientOriginalExtension();
-            
-            // Store in public/storage/categories/
-            $image->storeAs('public/categories', $imageName);
-            $data['image'] = $imageName;
+            $path = $request->file('image')->store('categories', 'public');
+            $data['image'] = basename($path);
         }
 
         // Generate slug from name
@@ -131,7 +127,7 @@ class CategoryController extends Controller
             'is_active' => 'boolean',
             'meta_title' => 'nullable|string|max:255',
             'meta_description' => 'nullable|string|max:500',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048'
+            'image' => 'nullable|image|mimes:jpeg,png,webp,gif|max:2048',
         ]);
 
         if ($validator->fails()) {
@@ -147,15 +143,12 @@ class CategoryController extends Controller
         // Handle image upload
         if ($request->hasFile('image')) {
             // Delete old image if exists
-            if ($category->image && Storage::exists('public/categories/' . $category->image)) {
-                Storage::delete('public/categories/' . $category->image);
+            if ($category->image) {
+                Storage::disk('public')->delete('categories/' . $category->image);
             }
 
-            $image = $request->file('image');
-            $imageName = time() . '_' . Str::random(10) . '.' . $image->getClientOriginalExtension();
-            
-            $image->storeAs('public/categories', $imageName);
-            $data['image'] = $imageName;
+            $path = $request->file('image')->store('categories', 'public');
+            $data['image'] = basename($path);
         }
 
         // Generate slug from name if name changed
@@ -194,9 +187,9 @@ class CategoryController extends Controller
             ], 400);
         }
 
-        // Delete image if exists
-        if ($category->image && Storage::exists('public/categories/' . $category->image)) {
-            Storage::delete('public/categories/' . $category->image);
+        // Delete image file if exists
+        if ($category->image) {
+            Storage::disk('public')->delete('categories/' . $category->image);
         }
 
         $category->delete();
@@ -213,7 +206,7 @@ class CategoryController extends Controller
     public function updateImage(Request $request, Category $category)
     {
         $validator = Validator::make($request->all(), [
-            'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048'
+            'image' => 'required|image|mimes:jpeg,png,webp,gif|max:2048',
         ]);
 
         if ($validator->fails()) {
@@ -225,16 +218,14 @@ class CategoryController extends Controller
         }
 
         // Delete old image if exists
-        if ($category->image && Storage::exists('public/categories/' . $category->image)) {
-            Storage::delete('public/categories/' . $category->image);
+        if ($category->image) {
+            Storage::disk('public')->delete('categories/' . $category->image);
         }
 
         // Upload new image
-        $image = $request->file('image');
-        $imageName = time() . '_' . Str::random(10) . '.' . $image->getClientOriginalExtension();
-        
-        $image->storeAs('public/categories', $imageName);
-        
+        $path = $request->file('image')->store('categories', 'public');
+        $imageName = basename($path);
+
         $category->update(['image' => $imageName]);
 
         return response()->json([
@@ -253,12 +244,7 @@ class CategoryController extends Controller
     public function removeImage(Category $category)
     {
         if ($category->image) {
-            // Delete image file
-            if (Storage::exists('public/categories/' . $category->image)) {
-                Storage::delete('public/categories/' . $category->image);
-            }
-
-            // Update database
+            Storage::disk('public')->delete('categories/' . $category->image);
             $category->update(['image' => null]);
 
             return response()->json([

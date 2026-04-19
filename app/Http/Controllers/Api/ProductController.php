@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\Category;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
@@ -190,65 +191,64 @@ class ProductController extends Controller
      */
     public function store(Request $request)
     {
-        // Check if user is admin
         if (!$request->user()->is_admin) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized access'
-            ], 403);
+            return response()->json(['success' => false, 'message' => 'Unauthorized access'], 403);
         }
 
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'description' => 'required|string',
+            'name'              => 'required|string|max:255',
+            'description'       => 'required|string',
             'short_description' => 'nullable|string|max:500',
-            'price' => 'required|numeric|min:0',
-            'sale_price' => 'nullable|numeric|min:0',
-            'sku' => 'required|string|unique:products,sku',
-            'stock' => 'required|integer|min:0',
-            'category_id' => 'required|exists:categories,id',
-            'images' => 'nullable|array',
-            'weight' => 'nullable|numeric|min:0',
-            'dimensions' => 'nullable|json',
-            'specifications' => 'nullable|json',
-            'is_featured' => 'boolean',
-            'is_active' => 'boolean',
-            'meta_title' => 'nullable|string|max:255',
-            'meta_description' => 'nullable|string|max:500',
+            'price'             => 'required|numeric|min:0',
+            'sale_price'        => 'nullable|numeric|min:0',
+            'sku'               => 'required|string|unique:products,sku',
+            'stock'             => 'required|integer|min:0',
+            'category_id'       => 'required|exists:categories,id',
+            'images'            => 'nullable|array',
+            'images.*'          => 'image|mimes:jpeg,png,webp,gif|max:2048',
+            'weight'            => 'nullable|numeric|min:0',
+            'dimensions'        => 'nullable|json',
+            'specifications'    => 'nullable|json',
+            'is_featured'       => 'boolean',
+            'is_active'         => 'boolean',
+            'meta_title'        => 'nullable|string|max:255',
+            'meta_description'  => 'nullable|string|max:500',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation error',
-                'errors' => $validator->errors()
+                'errors'  => $validator->errors(),
             ], 422);
         }
 
+        $imageUrls = $this->uploadImages($request->file('images') ?? []);
+
         $product = Product::create([
-            'name' => $request->name,
-            'slug' => Str::slug($request->name),
-            'description' => $request->description,
+            'name'              => $request->name,
+            'slug'              => Str::slug($request->name),
+            'description'       => $request->description,
             'short_description' => $request->short_description,
-            'price' => $request->price,
-            'sale_price' => $request->sale_price,
-            'sku' => $request->sku,
-            'stock' => $request->stock,
-            'category_id' => $request->category_id,
-            'images' => $request->images ?? [],
-            'weight' => $request->weight,
-            'dimensions' => $request->dimensions,
-            'specifications' => $request->specifications,
-            'is_featured' => $request->get('is_featured', false),
-            'is_active' => $request->get('is_active', true),
-            'meta_title' => $request->meta_title,
-            'meta_description' => $request->meta_description,
+            'price'             => $request->price,
+            'sale_price'        => $request->sale_price,
+            'sku'               => $request->sku,
+            'stock'             => $request->stock,
+            'category_id'       => $request->category_id,
+            'images'            => $imageUrls,
+            'weight'            => $request->weight,
+            'dimensions'        => $request->dimensions,
+            'specifications'    => $request->specifications,
+            'is_featured'       => $request->boolean('is_featured', false),
+            'is_active'         => $request->boolean('is_active', true),
+            'meta_title'        => $request->meta_title,
+            'meta_description'  => $request->meta_description,
         ]);
 
         return response()->json([
             'success' => true,
             'message' => 'Product created successfully',
-            'data' => $product
+            'data'    => $product,
         ], 201);
     }
 
@@ -257,59 +257,107 @@ class ProductController extends Controller
      */
     public function update(Request $request, Product $product)
     {
-        // Check if user is admin
         if (!$request->user()->is_admin) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized access'
-            ], 403);
+            return response()->json(['success' => false, 'message' => 'Unauthorized access'], 403);
         }
 
         $validator = Validator::make($request->all(), [
-            'name' => 'sometimes|string|max:255',
-            'description' => 'sometimes|string',
+            'name'              => 'sometimes|string|max:255',
+            'description'       => 'sometimes|string',
             'short_description' => 'sometimes|nullable|string|max:500',
-            'price' => 'sometimes|numeric|min:0',
-            'sale_price' => 'sometimes|nullable|numeric|min:0',
-            'sku' => 'sometimes|string|unique:products,sku,' . $product->id,
-            'stock' => 'sometimes|integer|min:0',
-            'category_id' => 'sometimes|exists:categories,id',
-            'images' => 'sometimes|nullable|array',
-            'weight' => 'sometimes|nullable|numeric|min:0',
-            'dimensions' => 'sometimes|nullable|json',
-            'specifications' => 'sometimes|nullable|json',
-            'is_featured' => 'sometimes|boolean',
-            'is_active' => 'sometimes|boolean',
-            'meta_title' => 'sometimes|nullable|string|max:255',
-            'meta_description' => 'sometimes|nullable|string|max:500',
+            'price'             => 'sometimes|numeric|min:0',
+            'sale_price'        => 'sometimes|nullable|numeric|min:0',
+            'sku'               => 'sometimes|string|unique:products,sku,' . $product->id,
+            'stock'             => 'sometimes|integer|min:0',
+            'category_id'       => 'sometimes|exists:categories,id',
+            'images'            => 'sometimes|nullable|array',
+            'images.*'          => 'image|mimes:jpeg,png,webp,gif|max:2048',
+            'existing_images'   => 'sometimes|nullable|array',
+            'existing_images.*' => 'nullable|string|url',
+            'weight'            => 'sometimes|nullable|numeric|min:0',
+            'dimensions'        => 'sometimes|nullable|json',
+            'specifications'    => 'sometimes|nullable|json',
+            'is_featured'       => 'sometimes|boolean',
+            'is_active'         => 'sometimes|boolean',
+            'meta_title'        => 'sometimes|nullable|string|max:255',
+            'meta_description'  => 'sometimes|nullable|string|max:500',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation error',
-                'errors' => $validator->errors()
+                'errors'  => $validator->errors(),
             ], 422);
         }
 
+        // ── Image management ──────────────────────────────────────────────────
+        $currentImages  = $product->images ?? [];
+        $keepImages     = $request->has('existing_images')
+                            ? array_values($request->input('existing_images', []))
+                            : $currentImages; // no existing_images sent → keep all
+
+        // Delete stored files that are no longer wanted
+        $toDelete = array_diff($currentImages, $keepImages);
+        foreach ($toDelete as $url) {
+            $this->deleteStoredImage($url);
+        }
+
+        // Upload any new files
+        $newUrls    = $this->uploadImages($request->file('images') ?? []);
+        $finalImages = array_values(array_merge($keepImages, $newUrls));
+
+        // ── Build update payload ──────────────────────────────────────────────
         $updateData = $request->only([
             'name', 'description', 'short_description', 'price', 'sale_price',
-            'sku', 'stock', 'category_id', 'images',
-            'weight', 'dimensions', 'specifications', 'is_featured', 'is_active',
-            'meta_title', 'meta_description'
+            'sku', 'stock', 'category_id', 'weight', 'dimensions',
+            'specifications', 'is_featured', 'is_active',
+            'meta_title', 'meta_description',
         ]);
 
         if (isset($updateData['name'])) {
             $updateData['slug'] = Str::slug($updateData['name']);
         }
 
+        $updateData['images'] = $finalImages;
+
         $product->update($updateData);
 
         return response()->json([
             'success' => true,
             'message' => 'Product updated successfully',
-            'data' => $product->fresh()
+            'data'    => $product->fresh(),
         ]);
+    }
+
+    /**
+     * Upload an array of image files to public/products/ and return their full URLs.
+     *
+     * @param  \Illuminate\Http\UploadedFile[]  $files
+     * @return string[]
+     */
+    private function uploadImages(array $files): array
+    {
+        $urls = [];
+        foreach ($files as $file) {
+            $path = $file->store('products', 'public');   // products/randomhash.jpg
+            $urls[] = asset(Storage::disk('public')->url($path));
+        }
+        return $urls;
+    }
+
+    /**
+     * Delete a previously uploaded product image from disk.
+     * Only deletes files that live inside our own /storage/ path.
+     */
+    private function deleteStoredImage(string $url): void
+    {
+        $parsed   = parse_url($url, PHP_URL_PATH);          // /storage/products/abc.jpg
+        $relative = ltrim(str_replace('/storage/', '', $parsed), '/'); // products/abc.jpg
+
+        if ($relative && Storage::disk('public')->exists($relative)) {
+            Storage::disk('public')->delete($relative);
+        }
     }
 
     /**
@@ -325,11 +373,16 @@ class ProductController extends Controller
             ], 403);
         }
 
+        // Delete all stored images before removing the record
+        foreach ($product->images ?? [] as $url) {
+            $this->deleteStoredImage($url);
+        }
+
         $product->delete();
 
         return response()->json([
             'success' => true,
-            'message' => 'Product deleted successfully'
+            'message' => 'Product deleted successfully',
         ]);
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class Category extends Model
@@ -43,15 +44,14 @@ class Category extends Model
     }
 
     // Accessors
-    public function getDisplayImageAttribute()
+    public function getDisplayImageAttribute(): string
     {
         if ($this->image) {
-            return asset('storage/categories/' . $this->image);
+            return asset(Storage::disk('public')->url('categories/' . $this->image));
         }
-        
-        // Generate placeholder image with first letter of category name
+
         $firstLetter = strtoupper(substr($this->name, 0, 1));
-        return "https://via.placeholder.com/200x200/4F46E5/FFFFFF?text=" . $firstLetter;
+        return 'https://via.placeholder.com/200x200/4F46E5/FFFFFF?text=' . $firstLetter;
     }
 
     // Mutators
